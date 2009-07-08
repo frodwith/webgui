@@ -46,6 +46,99 @@ sub _monthYear {
     return $monthYear;
 }
 
+#-------------------------------------------------------------------
+
+=head2 appendCredentialVars
+
+Add template vars for www_getCredentials
+
+=cut
+
+sub appendCredentialVars {
+    my ($self, $var) = @_;
+    my $session = $self->session;
+    my $form    = $session->form;
+
+    # Process address from address book if passed
+    my $addressId   = $form->process( 'addressId' );
+    my $addressData;
+    if ( $addressId ) {
+        $addressData    = eval{ $self->getAddress( $addressId )->get() } || {};
+    }
+    else { 
+        $addressData    = $self->getCart->getShippingAddress->get;
+    }
+
+    $var->{getSelectAddressButton} = $self->getSelectAddressButton( 'getCredentials' );
+
+    $var->{formHeader} = WebGUI::Form::formHeader($session)
+                       . $self->getDoFormTags('pay');
+
+    if ($var->{formHeader}) {
+        $var->{formHeader} .= WebGUI::Form::hidden($session, {name => 'addressId', value => $addressId});
+    }
+
+    $var->{formFooter} = WebGUI::Form::formFooter();
+   
+    # Address data form
+    $var->{firstNameField} = WebGUI::Form::text($session, {
+        name  => 'firstName',
+        value => $form->process("firstName") || $addressData->{ "firstName" } || $u->profileField('firstName'),
+    });
+    $var->{lastNameField} = WebGUI::Form::text($session, {
+        name  => 'lastName',
+        value => $form->process("lastName") || $addressData->{ "lastName" } || $u->profileField('lastName'),
+    });
+    $var->{addressField} = WebGUI::Form::text($session, {
+        name  => 'address',
+        value => $form->process("address") || $addressData->{ address1 } || $u->profileField('homeAddress'),
+    });
+    $var->{cityField} = WebGUI::Form::text($session, {
+        name  => 'city',
+        value => $form->process("city") || $addressData->{ city } || $u->profileField('homeCity'),
+    });
+    $var->{stateField} = WebGUI::Form::text($session, {
+        name  => 'state',
+        value => $form->process("state") || $addressData->{ state } || $u->profileField('homeState'),
+    });
+    $var->{codeField} = WebGUI::Form::zipcode($session, {
+        name  => 'zipcode',
+        value => $form->process("zipcode") || $addressData->{ code } || $u->profileField('homeZip'),
+    });
+    $var->{countryField} = WebGUI::Form::country($session, {
+        name  => 'country',
+        value => ($form->process("country",'country') || $addressData->{ country } || $u->profileField("homeCountry") || 'United States'),
+    });
+    $var->{phoneField} = WebGUI::Form::phone($session, {
+        name  => 'phone',
+        value => $form->process("phone",'phone') || $addressData->{ phoneNumber } || $u->profileField("homePhone"),
+    });
+    $var->{emailField} = WebGUI::Form::email($session, {
+        name  => 'email',
+        value => $form->process('email', 'email') || $addressData->{ email } || $u->profileField('email'),
+    });
+
+    # Credit card information
+    $var->{cardNumberField} = WebGUI::Form::text($session, {
+        name  => 'cardNumber',
+        value => $form->process("cardNumber"),
+    });
+    $var->{monthYearField} = WebGUI::Form::readOnly($session, {
+        value => _monthYear( $session ),
+    });
+    $var->{cvv2Field} = WebGUI::Form::integer($session, {
+        name  => 'cvv2',
+        value => $form->process("cvv2"),
+    }) if $self->get('useCVV2');
+
+    $var->{checkoutButton} = WebGUI::Form::submit($session, {
+        value => $i18n->get('checkout button', 'Shop'),
+    });
+
+    return;
+}
+
+#-------------------------------------------------------------------
 sub definition {
     my ($class, $session, $definition) = @_;
 
@@ -216,20 +309,9 @@ sub www_getCredentials {
     my $form        = $session->form;
     my $i18n        = WebGUI::International->new($self->session, $I18N);
 	my $u           = WebGUI::User->new($self->session,$self->session->user->userId);
-
-    # Process address from address book if passed
-    my $addressId   = $session->form->process( 'addressId' );
-    my $addressData;
-    if ( $addressId ) {
-        $addressData    = eval{ $self->getAddress( $addressId )->get() } || {};
-    }
-    else { 
-        $addressData    = $self->getCart->getShippingAddress->get;
-    }
-                   
     my $var = {};
 
-    # Process form errors
+# Process form errors
     $var->{errors} = [];
     if ($errors) {
         $var->{error_message} = $i18n->get('error occurred message');
@@ -237,72 +319,8 @@ sub www_getCredentials {
             push @{ $var->{errors} }, { error => $error };
         }
     }
-    
-    $var->{getSelectAddressButton} = $self->getSelectAddressButton( 'getCredentials' );
 
-    $var->{formHeader} = WebGUI::Form::formHeader($session)
-                       . $self->getDoFormTags('pay');
-
-    if ($var->{formHeader}) {
-        $var->{formHeader} .= WebGUI::Form::hidden($session, {name => 'addressId', value => $addressId});
-    }
-
-    $var->{formFooter} = WebGUI::Form::formFooter();
-   
-    # Address data form
-    $var->{firstNameField} = WebGUI::Form::text($session, {
-        name  => 'firstName',
-        value => $form->process("firstName") || $addressData->{ "firstName" } || $u->profileField('firstName'),
-    });
-    $var->{lastNameField} = WebGUI::Form::text($session, {
-        name  => 'lastName',
-        value => $form->process("lastName") || $addressData->{ "lastName" } || $u->profileField('lastName'),
-    });
-    $var->{addressField} = WebGUI::Form::text($session, {
-        name  => 'address',
-        value => $form->process("address") || $addressData->{ address1 } || $u->profileField('homeAddress'),
-    });
-    $var->{cityField} = WebGUI::Form::text($session, {
-        name  => 'city',
-        value => $form->process("city") || $addressData->{ city } || $u->profileField('homeCity'),
-    });
-    $var->{stateField} = WebGUI::Form::text($session, {
-        name  => 'state',
-        value => $form->process("state") || $addressData->{ state } || $u->profileField('homeState'),
-    });
-    $var->{codeField} = WebGUI::Form::zipcode($session, {
-        name  => 'zipcode',
-        value => $form->process("zipcode") || $addressData->{ code } || $u->profileField('homeZip'),
-    });
-    $var->{countryField} = WebGUI::Form::country($session, {
-        name  => 'country',
-        value => ($form->process("country",'country') || $addressData->{ country } || $u->profileField("homeCountry") || 'United States'),
-    });
-    $var->{phoneField} = WebGUI::Form::phone($session, {
-        name  => 'phone',
-        value => $form->process("phone",'phone') || $addressData->{ phoneNumber } || $u->profileField("homePhone"),
-    });
-    $var->{emailField} = WebGUI::Form::email($session, {
-        name  => 'email',
-        value => $form->process('email', 'email') || $addressData->{ email } || $u->profileField('email'),
-    });
-
-    # Credit card information
-    $var->{cardNumberField} = WebGUI::Form::text($session, {
-        name  => 'cardNumber',
-        value => $self->session->form->process("cardNumber"),
-    });
-    $var->{monthYearField} = WebGUI::Form::readOnly($session, {
-        value => _monthYear( $session ),
-    });
-    $var->{cvv2Field} = WebGUI::Form::integer($session, {
-        name  => 'cvv2',
-        value => $self->session->form->process("cvv2"),
-    }) if $self->get('useCVV2');
-
-    $var->{checkoutButton} = WebGUI::Form::submit($session, {
-        value => $i18n->get('checkout button', 'Shop'),
-    });
+    $self->appendCredentialVars($var);
 
     my $template = WebGUI::Asset::Template->new($session, $self->get("credentialsTemplateId"));
     my $output;

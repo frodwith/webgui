@@ -357,12 +357,10 @@ sub definition {
             label       => $i18n->get('password'),
             hoverHelp   => $i18n->get('password help'),
         },
-        credentialsTemplateId  => {
-            fieldType    => 'template',
-            label        => $i18n->get('credentials template'),
-            hoverHelp    => $i18n->get('credentials template help'),
-            namespace    => 'Shop/Credentials',
-            defaultValue => 'itransact_credentials1',	
+        emailMessage    => {
+            fieldType   => 'textarea',
+            label       => $i18n->get('emailMessage'),
+            hoverHelp   => $i18n->get('emailMessage help'),
         },
         # readonly stuff from old plugin here?
     );
