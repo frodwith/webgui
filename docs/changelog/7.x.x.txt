@@ -1,9 +1,27 @@
+7.7.15
+  - fixed #10629: WebGUI::ProfileField create new field bug
+  - fixed #10626: Carriage returns stripped from Wiki comments
+  - fixed #10572: CDN / CloudFront breaks 7.7.11 upgrade
+  - fixed #10630: If macro says that 0 is true
+  - WebGUI::Shop::PayDriver::PayPal::PayPalStd replaced by WebGUI::Shop::PayDriver::PayPal.  PayPalStd fought the Shop API and didn't work.
+  - fixed #10633: GET requests in Operation/User require valid CSRF token.
+
 7.7.14
  - fixed #10606: shelf selector
  - fixed: Have just 1 list of protected groups.  Use that everywhere.
  - fixed #10488: Map.gif is missing for Map wobject
  - fixed #10553: WebGUI vulnerable to CSRF attacks
  - fixed #10607: snippets empty
+ - fixed #10601: Edit field in Thing: no submit button
+ - fixed #10560: 7.7.2 upgrade script leaves rssFromParent assets behind (Wes Morgan)
+ - fixed #10612: strange i18n, with regard to label
+ - fixed #9935: German characters in Collaboration System
+ - fixed #10610: editing a page and editing goes away
+ - fixed #10518: ThingyRecord edit page - Fields to Edit not filled in
+ - fixed #10603: ThingyRecord Thank You/Confirmation Screen Confusing
+ - fixed #10615: i18n Asset_StoryArchive - deleteIcon
+ - fixed: Exceptions from WebGUI::Exception::Shop
+ - fixed #10616: karma list will break eventually
 
 7.7.13
  - fixed #10574: Creating Calendar Entry

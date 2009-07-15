@@ -22,21 +22,16 @@ use Getopt::Long;
 use WebGUI::Session;
 use WebGUI::Storage;
 use WebGUI::Asset;
-use WebGUI::Shop::Ship;
-use WebGUI::Shop::ShipDriver;
 
 
-my $toVersion = '7.7.11';
+my $toVersion = '7.7.15';
 my $quiet; # this line required
 
 
 my $session = start(); # this line required
 
 # upgrade functions go here
-setDefaultIcalInterval($session);
-makeSurveyResponsesVersionAware($session);
-addShipperGroupToUse($session);
-shrinkSurveyJSON($session);
+replacePayPalDriver($session);
 
 finish($session); # this line required
 
@@ -50,67 +45,22 @@ finish($session); # this line required
 #    print "DONE!\n" unless $quiet;
 #}
 
-#----------------------------------------------------------------------------
-# Describe what our function does
-sub setDefaultIcalInterval {
+sub replacePayPalDriver {
     my $session = shift;
-    print "\tSet default ICAL interval in older calendars... " unless $quiet;
-    $session->db->write("UPDATE Calendar SET icalInterval = 7776000 where icalInterval is null or icalInterval = ''");
-    # and here's our code
-    print "DONE!\n" unless $quiet;
-}
+    my $config  = $session->config;
+    my $prop    = 'paymentDrivers';
+    my $old     = 'WebGUI::Shop::PayDriver::PayPal::PayPalStd';
+    my $drivers = $config->get($prop);
+    foreach my $driver (@$drivers) {
+        # We'll do nothing if the old paypal driver isn't used
+        next unless $driver eq $old;
 
-#----------------------------------------------------------------------------
-sub addShipperGroupToUse {
-    my $session = shift;
-    print "\tAdd Group to Use for all existing shipping drivers... " unless $quiet;
-    my $ship     = WebGUI::Shop::Ship->new($session);
-    my $shippers = $ship->getShippers($session);
-    foreach my $shipper (@{ $shippers }) {
-        my $options = $shipper->get();
-        $options->{groupToUse} = 7;
-        $shipper->update($options);
+        print "\tUpdating config to use new PayPal driver..." unless $quiet;
+        $config->deleteFromArray($prop, $old);
+        $config->addToArray($prop, 'WebGUI::Shop::PayDriver::PayPal');
+        print "DONE!\n" unless $quiet;
+        last;
     }
-    # and here's our code
-    print "DONE!\n" unless $quiet;
-}
-
-#----------------------------------------------------------------------------
-sub makeSurveyResponsesVersionAware {
-    my $session = shift;
-    print "\tAdding revisionDate column to Survey_response table...\n" unless $quiet;
-    $session->db->write("alter table Survey_response add column revisionDate bigint(20) not null default 0");
-    
-    print "\tDefaulting revisionDate on existing responses to current latest revision... " unless $quiet;
-    for my $assetId ($session->db->buildArray('select assetId from Survey_response')) {
-        $session->db->write(<<END_SQL, [ $assetId, $assetId]);
-update Survey_response 
-set revisionDate = ( 
-    select max(revisionDate)
-    from Survey 
-    where Survey.assetId = ?
-    )
-where Survey_response.assetId = ?
-END_SQL
-    }
-    print "DONE!\n" unless $quiet;
-}
-
-#----------------------------------------------------------------------------
-sub shrinkSurveyJSON {
-    my $session = shift;
-    print "\tCompressing surveyJSON column in Survey table (this may take some time)... " unless $quiet;
-    my $sth = $session->db->read('select assetId, revisionDate from Survey');
-    use WebGUI::Asset::Wobject::Survey;
-    while (my ($assetId, $revision) = $sth->array) {
-        my $survey = WebGUI::Asset->new($session, $assetId, 'WebGUI::Asset::Wobject::Survey', $revision);
-        $survey->persistSurveyJSON;
-    }
-    print "DONE!\n" unless $quiet;
-    
-    print "\tOptimizing Survey table... " unless $quiet;
-    $session->db->write('optimize table Survey');    
-    print "DONE!\n" unless $quiet;
 }
 
 
@@ -151,7 +101,7 @@ sub addPackage {
         $asset->update( $properties );
     }
 
-    return 1;
+    return;
 }
 
 #-------------------------------------------------

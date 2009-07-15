@@ -75,15 +75,19 @@ sub _submenu {
 		$ac->addSubmenuItem($session->url->page("op=editUser;uid=new"), $i18n->get(169));
 	}
 
+    $ac->setFormUrl($session->url->page('op=editUser;uid='.$userId));
+    my $formId = $ac->getSubmenuFormId;
 	if (canEdit($session)) {
 		unless ($session->form->process("op") eq "listUsers" 
 			|| $session->form->process("op") eq "deleteUser"
 			|| $userId eq "new") {
 			$ac->addSubmenuItem($session->url->page("op=editUser;uid=$userId"), $i18n->get(457));
-			$ac->addSubmenuItem($session->url->page("op=becomeUser;uid=$userId"), $i18n->get(751));
+			$ac->addSubmenuItem($session->url->page('op=becomeUser;uid='.$userId), $i18n->get(751), qq|onclick="var thisForm=document.getElementById('$formId');thisForm.op.value='becomeUser';thisForm.submit(); return false;"|);
             my $user = WebGUI::User->new($session, $userId);
 			$ac->addSubmenuItem($user->getProfileUrl(), $i18n->get('view profile'));
-			$ac->addConfirmedSubmenuItem($session->url->page("op=deleteUser;uid=$userId"), $i18n->get(750), $i18n->get(167));
+            my $confirm = $i18n->get(167);
+            $confirm =~ s/([\\\'])/\\$1/g;
+			$ac->addSubmenuItem($session->url->page('op=deleteUser;uid='.$userId), $i18n->get(750), qq|onclick="var ack = confirm('$confirm'); alert(ack); if (ack) { var thisForm=document.getElementById('$formId');thisForm.op.value='deleteUser';thisForm.submit();} return false;"|);
 			if ($session->setting->get("useKarma")) {
 				$ac->addSubmenuItem($session->url->page("op=editUserKarma;uid=$userId"), $i18n->get(555));
 			}
@@ -596,13 +600,13 @@ after this.
 sub www_deleteUser {
 	my $session = shift;
 	return $session->privilege->adminOnly() unless canEdit($session) && $session->form->validToken;
-	my ($u);
-        if ($session->form->process("uid") eq '1' || $session->form->process("uid") eq '3') {
-	   return WebGUI::AdminConsole->new($session,"users")->render($session->privilege->vitalComponent());
-    } else {
-	   $u = WebGUI::User->new($session,$session->form->process("uid"));
-	   $u->delete;
-       return www_listUsers($session);
+    if ($session->form->process("uid") eq '1' || $session->form->process("uid") eq '3') {
+        return WebGUI::AdminConsole->new($session,"users")->render($session->privilege->vitalComponent());
+    }
+    else {
+        my $u = WebGUI::User->new($session,$session->form->process("uid"));
+        $u->delete;
+        return www_listUsers($session);
     }
 }
 
