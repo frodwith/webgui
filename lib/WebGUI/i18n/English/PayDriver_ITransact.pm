@@ -128,6 +128,16 @@ Also set the 'RECURRING POST-BACK URL' field in the Account Settings part of the
         lastUpdated => 0,
         context     => q{Hover help for the password field in the configuration form of the iTransact module.},
     },
+	'vendorId' => {
+		message => q|Username (Vendor ID)|,
+		lastUpdated => 0,
+		context => q|Form label in the configuration form of the iTransact module.|
+	},
+	'vendorId help' => {
+		message => q|Fill in the  username or vendor id you got from ITransact.|,
+		lastUpdated => 0,
+		context => q|Hover help for vendor id in the configuration form of the iTransact module.|
+	},
 };
 
 1;

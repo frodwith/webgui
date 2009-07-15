@@ -177,6 +177,7 @@
 "paymentDrivers" : [
     "WebGUI::Shop::PayDriver::Cash",
     "WebGUI::Shop::PayDriver::ITransact",
+    "WebGUI::Shop::PayDriver::CreditCard::AuthorizeNet",
     "WebGUI::Shop::PayDriver::PayPal",
     "WebGUI::Shop::PayDriver::Ogone"
     ],

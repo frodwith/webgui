@@ -5,6 +5,9 @@
   - fixed #10630: If macro says that 0 is true
   - WebGUI::Shop::PayDriver::PayPal::PayPalStd replaced by WebGUI::Shop::PayDriver::PayPal.  PayPalStd fought the Shop API and didn't work.
   - fixed #10633: GET requests in Operation/User require valid CSRF token.
+  - WebGUI::Shop::PayDriver::CreditCard::AuthorizeNet added
+  - WebGUI::Shop::PayDriver::CreditCard factored out of ITransact and used as
+    a base class for both ITransact and AuthorizeNet
 
 7.7.14
  - fixed #10606: shelf selector

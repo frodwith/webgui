@@ -32,6 +32,7 @@ my $session = start(); # this line required
 
 # upgrade functions go here
 replacePayPalDriver($session);
+addAuthorizeNetDriver($session);
 
 finish($session); # this line required
 
@@ -44,6 +45,13 @@ finish($session); # this line required
 #    # and here's our code
 #    print "DONE!\n" unless $quiet;
 #}
+
+sub addAuthorizeNetDriver {
+    my $session = shift;
+    print "\tAdding AuthorizeNet payment driver..." unless $quiet;
+    $session->config->addToArray('paymentDrivers','WebGUI::Shop::PayDriver::CreditCard::AuthorizeNet');
+    print "DONE!\n" unless $quiet;
+}
 
 sub replacePayPalDriver {
     my $session = shift;
