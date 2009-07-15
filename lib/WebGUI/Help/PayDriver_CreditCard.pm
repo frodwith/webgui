@@ -1,7 +1,6 @@
-package WebGUI::Help::PayDriver_ITransact;
+package WebGUI::Help::PayDriver_CreditCard;
 
 use strict; 
-
 
 our $HELP = { 
 
@@ -88,6 +87,11 @@ our $HELP = {
 				description	=> "cvv2Field help",
 				required	=> 1,
 			},
+            {
+                name        => 'fields',
+                description => 'fields help',
+                required    => 1,
+            },
 			{
 				name		=> "checkoutButton",
 				description	=> "checkoutButton help",
