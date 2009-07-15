@@ -391,6 +391,8 @@ sub www_getCredentials {
     foreach my $f (@{ $var->{fields} }) {
         $var->{ "$f->{name}Field" } = $f->{field};
     }
+    # codeField for backwards compat with old templates
+    $var->{codeField} = $var->{zipcodeField};
 
     my $template = WebGUI::Asset::Template->new($session, $self->get("credentialsTemplateId"));
     my $output;
