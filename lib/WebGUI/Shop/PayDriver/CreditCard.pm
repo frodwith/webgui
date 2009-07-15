@@ -30,16 +30,16 @@ sub _monthYear {
 	%months = map { sprintf( '%02d', $_ ) => sprintf( '%02d', $_ ) } 1 .. 12;
 	%years  = map { $_ => $_ } 2004 .. 2099;
 
-    my $monthYear = 
+    my $monthYear =
         WebGUI::Form::selectBox( $session, {
-            name    => 'expMonth', 
-            options => \%months, 
+            name    => 'expMonth',
+            options => \%months,
             value   => [ $form->process("expMonth") ]
         })
         . " / "
         . WebGUI::Form::selectBox( $session, {
             name    => 'expYear',
-            options => \%years, 
+            options => \%years,
             value   => [ $form->process("expYear") ]
         });
 
@@ -57,7 +57,9 @@ Add template vars for www_getCredentials
 sub appendCredentialVars {
     my ($self, $var) = @_;
     my $session = $self->session;
+	my $u       = $session->user;
     my $form    = $session->form;
+    my $i18n    = WebGUI::International->new($session, $I18N);
 
     # Process address from address book if passed
     my $addressId   = $form->process( 'addressId' );
@@ -65,7 +67,7 @@ sub appendCredentialVars {
     if ( $addressId ) {
         $addressData    = eval{ $self->getAddress( $addressId )->get() } || {};
     }
-    else { 
+    else {
         $addressData    = $self->getCart->getShippingAddress->get;
     }
 
@@ -79,57 +81,116 @@ sub appendCredentialVars {
     }
 
     $var->{formFooter} = WebGUI::Form::formFooter();
-   
-    # Address data form
-    $var->{firstNameField} = WebGUI::Form::text($session, {
-        name  => 'firstName',
-        value => $form->process("firstName") || $addressData->{ "firstName" } || $u->profileField('firstName'),
-    });
-    $var->{lastNameField} = WebGUI::Form::text($session, {
-        name  => 'lastName',
-        value => $form->process("lastName") || $addressData->{ "lastName" } || $u->profileField('lastName'),
-    });
-    $var->{addressField} = WebGUI::Form::text($session, {
-        name  => 'address',
-        value => $form->process("address") || $addressData->{ address1 } || $u->profileField('homeAddress'),
-    });
-    $var->{cityField} = WebGUI::Form::text($session, {
-        name  => 'city',
-        value => $form->process("city") || $addressData->{ city } || $u->profileField('homeCity'),
-    });
-    $var->{stateField} = WebGUI::Form::text($session, {
-        name  => 'state',
-        value => $form->process("state") || $addressData->{ state } || $u->profileField('homeState'),
-    });
-    $var->{codeField} = WebGUI::Form::zipcode($session, {
-        name  => 'zipcode',
-        value => $form->process("zipcode") || $addressData->{ code } || $u->profileField('homeZip'),
-    });
-    $var->{countryField} = WebGUI::Form::country($session, {
-        name  => 'country',
-        value => ($form->process("country",'country') || $addressData->{ country } || $u->profileField("homeCountry") || 'United States'),
-    });
-    $var->{phoneField} = WebGUI::Form::phone($session, {
-        name  => 'phone',
-        value => $form->process("phone",'phone') || $addressData->{ phoneNumber } || $u->profileField("homePhone"),
-    });
-    $var->{emailField} = WebGUI::Form::email($session, {
-        name  => 'email',
-        value => $form->process('email', 'email') || $addressData->{ email } || $u->profileField('email'),
-    });
 
-    # Credit card information
-    $var->{cardNumberField} = WebGUI::Form::text($session, {
+    my @fields = (
+        {
+            name  => 'firstName',
+            label => 'firstName',
+            addr  => 'firstName',
+            prof  => 'firstName',
+        },
+        {
+            name  => 'lastName',
+            label => 'lastName',
+            addr  => 'lastName',
+            prof  => 'lastName',
+        },
+        {
+            name  => 'address',
+            label => 'address',
+            addr  => 'address1',
+            prof  => 'homeAddress',
+        },
+        {
+            name  => 'city',
+            label => 'city',
+            addr  => 'city',
+            prof  => 'homeCity'
+        },
+        {
+            name  => 'state',
+            label => 'state',
+            addr  => 'state',
+            prof  => 'homeState',
+        },
+        {
+            name  => 'zipcode',
+            label => 'code',
+            addr  => 'code',
+            prof  => 'homeZip'
+        },
+        {
+            name  => 'country',
+            label => 'country',
+            type  => 'country',
+            addr  => 'country',
+            prof  => 'homeCountry',
+            def   => 'United States',
+        },
+        {
+            name  => 'phone',
+            label => 'phone number',
+            type  => 'phone',
+            addr  => 'phoneNumber',
+            prof  => 'homePhone',
+        },
+        {
+            name  => 'email',
+            label => 'email',
+            type  => 'email',
+            addr  => 'email',
+            prof  => 'email',
+        },
+    );
+
+    my ($shopText, $ccText) = map {
+        WebGUI::International->new($session, $_)
+    } qw(Shop PayDriver_CreditCard);
+
+    my @fieldLoop;
+
+    foreach my $f (@fields) {
+        my $name  = $f->{name};
+        my $type  = $f->{type} || 'text';
+
+        my $value = $form->process($name, $type);
+        $value ||= $addressData->{ $f->{addr} }   if $f->{addr};
+        $value ||= $u->profileField( $f->{prof} ) if $f->{prof};
+
+        no strict 'refs';
+        my $make = "WebGUI::Form::$type";
+        push @fieldLoop, {
+            label => $shopText->get( $f->{label} ),
+            name  => $name,
+            field => $make->($session, { name => $name, value => $value }),
+        };
+    }
+
+    push @fieldLoop, {
         name  => 'cardNumber',
-        value => $form->process("cardNumber"),
-    });
-    $var->{monthYearField} = WebGUI::Form::readOnly($session, {
-        value => _monthYear( $session ),
-    });
-    $var->{cvv2Field} = WebGUI::Form::integer($session, {
+        label => $ccText->get('cardNumber'),
+        field => WebGUI::Form::text($session, {
+            name  => 'cardNumber', 
+            value => $form->process('cardNumber')
+        }),
+    };
+
+    push @fieldLoop, {
+        name  => 'monthYear',
+        label => $ccText->get('expiration date'),
+        field => _monthYear( $session ),
+    };
+
+    push @fieldLoop, {
         name  => 'cvv2',
-        value => $form->process("cvv2"),
-    }) if $self->get('useCVV2');
+        label => $ccText->get('cvv2'),
+        field => WebGUI::Form::integer($session, {
+            name  => 'cvv2',
+            value => $form->process('cvv2'),
+        }),
+    } if $self->get('useCVV2');
+
+    $var->{fields} = \@fieldLoop;
 
     $var->{checkoutButton} = WebGUI::Form::submit($session, {
         value => $i18n->get('checkout button', 'Shop'),
@@ -155,12 +216,12 @@ sub definition {
             label        => $i18n->get('credentials template'),
             hoverHelp    => $i18n->get('credentials template help'),
             namespace    => 'Shop/Credentials',
-            defaultValue => 'itransact_credentials1',	
+            defaultValue => 'itransact_credentials1',
         },
     );
- 
+
     push @{ $definition }, {
-        name        => $i18n->get('name'),
+        name        => 'Credit Card Base Class',
         properties  => \%fields,
     };
 
@@ -169,7 +230,7 @@ sub definition {
 
 #-------------------------------------------------------------------
 
-=head2 getButton 
+=head2 getButton
 
 Return a form to select this payment driver and to accept credentials from those
 who wish to use it.
@@ -188,7 +249,7 @@ sub getButton {
 
 #-------------------------------------------------------------------
 
-=head2 processCredentials 
+=head2 processCredentials
 
 Process the form where credentials (name, address, phone number and credit card information)
 are entered.
@@ -208,11 +269,11 @@ sub processCredentials {
 	push @error, $i18n->get( 'invalid address'      ) unless $form->process( 'address'   );
 	push @error, $i18n->get( 'invalid city'         ) unless $form->process( 'city'      );
 	push @error, $i18n->get( 'invalid email'        ) unless $form->email  ( 'email'     );
-	push @error, $i18n->get( 'invalid zip'          ) 
+	push @error, $i18n->get( 'invalid zip'          )
         if ( !$form->zipcode( 'zipcode' ) && $form->process( 'country' ) eq 'United States' );
-	
+
     # Check credit card data
-	push @error, $i18n->get( 'invalid card number'  ) unless $form->integer('cardNumber');	
+	push @error, $i18n->get( 'invalid card number'  ) unless $form->integer('cardNumber');
 	push @error, $i18n->get( 'invalid cvv2'         ) if ($self->get('useCVV2') && !$form->integer('cvv2'));
 
 	# Check if expDate and expYear have sane values
@@ -230,8 +291,8 @@ sub processCredentials {
         expMonth	=> $form->integer( 'expMonth'   ),
         expYear		=> $form->integer( 'expYear'    ),
         cvv2		=> $form->integer( 'cvv2'       ),
-    };	
-    
+    };
+
     $self->{ _billingAddress } = {
         address1	=> $form->process( 'address'    ),
         code	    => $form->zipcode( 'zipcode'    ),
@@ -271,7 +332,7 @@ sub getBillingAddress {
                     ? $self->getAddress( $addressId )
                     : $self->getCart->getShippingAddress
                     ;
-    
+
     ##If the user made any changes to the default address, create a new billing address
     ##and use it instead
     if( $address->get('firstName'   ) ne $self->{_billingAddress}->{ 'firstName'    }
@@ -307,8 +368,7 @@ sub www_getCredentials {
     my $errors      = shift;
     my $session     = $self->session;
     my $form        = $session->form;
-    my $i18n        = WebGUI::International->new($self->session, $I18N);
-	my $u           = WebGUI::User->new($self->session,$self->session->user->userId);
+    my $i18n        = WebGUI::International->new($session, $I18N);
     my $var = {};
 
 # Process form errors
@@ -321,6 +381,12 @@ sub www_getCredentials {
     }
 
     $self->appendCredentialVars($var);
+
+    # Just in case the template author wants to use the fields by name, set
+    # that up too
+    foreach my $f (@{ $var->{fields} }) {
+        $var->{ "$f->{name}Field" } = $f->{field};
+    }
 
     my $template = WebGUI::Asset::Template->new($session, $self->get("credentialsTemplateId"));
     my $output;
@@ -337,7 +403,7 @@ sub www_getCredentials {
 
 #-------------------------------------------------------------------
 
-=head2 www_pay 
+=head2 www_pay
 
 Makes sure that the user has all the requirements for checking out, including
 getting credentials, it processes the transaction and then displays a thank
@@ -354,16 +420,19 @@ sub www_pay {
     # Go back to checkout form if credentials are not ok
     return $self->www_getCredentials( $credentialsErrors ) if $credentialsErrors;
 
-    my $addressId      = $session->form->process( 'addressId' );
-    my $billingAddress = $self->getBillingAddress($addressId);
+    my $addressId       = $session->form->process( 'addressId' );
+    my $billingAddress  = $self->getBillingAddress($addressId);
+    my $shippingAddress = $self->getCart->getShippingAddress;
 
     # Payment time!
     my $transaction = $self->processTransaction( $billingAddress );
+
     ## The billing address object is temporary, just to send to the transaction.
     ## Delete it if we don't need it.
-    if ($billingAddress->getId ne $addressId) {
-        $billingAddress->delete;
-    }
+    my $temp = $billingAddress->getId eq $addressId
+        ||     $billingAddress->getId ne $shippingAddress->getId;
+    $billingAddress->delete if $temp;
+
 	if ($transaction->get('isSuccessful')) {
 	    return $transaction->thankYou();
 	}

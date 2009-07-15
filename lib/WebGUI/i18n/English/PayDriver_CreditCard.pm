@@ -1,41 +1,26 @@
-package WebGUI::i18n::English::PayDriver_ITransact;
+package WebGUI::i18n::English::PayDriver_CreditCard;
 use strict;
 
 our $I18N = {
-	'address' => {
-		message => q|Address|,
-		lastUpdated => 1101772170,
-		context => q|Form label in the checkout form of the iTransact module.|
-	},
 	'cardNumber' => {
 		message => q|Credit card number|,
 		lastUpdated => 1101772177,
-		context => q|Form label in the checkout form of the iTransact module.|
-	},
-	'city' => {
-		message => q|City|,
-		lastUpdated => 1101772171,
-		context => q|Form label in the checkout form of the iTransact module.|
+		context => q|Form label in the checkout form of the Credit Card module.|
 	},
 	'credentials template' => {
 		message => q|Credentials Template|,
 		lastUpdated => 0,
-		context => q|Form label in the configuration form of the iTransact module.|
+		context => q|Form label in the configuration form of the Credit Card module.|
 	},
    	'credentials template help' => {
 		message => q|Pick a template to display the form where the user will enter in their billing information and credit card information.|,
 		lastUpdated => 0,
-		context => q|Hover help for the credentials template field in the configuration form of the iTransact module.|
+		context => q|Hover help for the credentials template field in the configuration form of the Credit Card module.|
 	},
 	'cvv2' => {
 		message => q|Verification number (ie. CVV2)|,
 		lastUpdated => 1101772182,
-		context => q|Form label in the checkout form of the iTransact module.|
-	},
-	'email' => {
-		message => q|Email|,
-		lastUpdated => 1101772176,
-		context => q|Form label in the checkout form of the iTransact module.|
+		context => q|Form label in the checkout form of the Credit Card module.|
 	},
     'error occurred message' => {
         message => q|The following errors occurred:|,
@@ -45,17 +30,12 @@ our $I18N = {
 	'expiration date' => {
 		message => q|Expiration date|,
 		lastUpdated => 1101772180,
-		context => q|Form label in the checkout form of the iTransact module.|
+		context => q|Form label in the checkout form of the Credit Card module.|
 	},
 	'expired expiration date' => {
 		message => q|The expiration date on your card has already passed.|,
 		lastUpdated => 0,
 		context => q|An error indicating that an an expired card was used.|
-	},
-	'firstName' => {
-		message => q|First name|,
-		lastUpdated => 0,
-		context => q|Form label in the checkout form of the iTransact module.|
 	},
 	'invalid firstName' => {
 		message => q|You have to enter a valid first name.|,
@@ -102,11 +82,6 @@ our $I18N = {
 		lastUpdated => 0,
 		context => q|An error indicating that an invalid expiration date has been entered.|
 	},
-	'lastName' => {
-		message => q|Last name|,
-		lastUpdated => 0,
-		context => q|Form label in the checkout form of the iTransact module.|
-	},
 	'template gone' => {
 		message => q|The template for entering in credentials has been deleted.  Please notify the site administrator.|,
 		lastUpdated => 0,
@@ -115,13 +90,13 @@ our $I18N = {
 	'use cvv2' => {
 		message => q|Use CVV2|,
 		lastUpdated => 0,
-		context => q|Form label in the configuration form of the iTransact module.|
+		context => q|Form label in the configuration form of the Credit Card module.|
 	},
 	'use cvv2 help' => {
 		message => q|Set this option to yes if you want to use CVV2.|,
 		lastUpdated => 0,
-		context => q|Form label in the configuration form of the iTransact module.|
+		context => q|Form label in the configuration form of the Credit Card module.|
 	},
-}
+};
 
 1;

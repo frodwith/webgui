@@ -1,35 +1,20 @@
 package WebGUI::i18n::English::PayDriver_ITransact;
+
 use strict;
 
 our $I18N = {
-	'email' => {
-		message => q|Email|,
-		lastUpdated => 1101772176,
-		context => q|Form label in the checkout form of the iTransact module.|
-	},
-	'emailMessage' => {
-		message => q|Email message|,
-		lastUpdated => 0,
-		context => q|Form label in the configuration form of the iTransact module.|
-	},
-   	'emailMessage help' => {
-		message => q|The message that will be appended to the email user will receive from ITransact.|,
-		lastUpdated => 0,
-		context => q|Hover help for the email message field in the configuration form of the iTransact module.|
-	},
-	'password' => {
-		message => q|Password|,
-		lastUpdated => 0,
-		context => q|Form label in the configuration form of the iTransact module.|
-	},
-	'password help' => {
-		message => q|The password for your ITransact account.|,
-		lastUpdated => 0,
-		context => q|Hover help for the password field in the configuration form of the iTransact module.|
-	},
-
-    'extra info' => {
-		message => q|Setting up your ecommerce site is as easy as these few steps:
+    'emailMessage' => { 
+        message     => q{Email message},
+        lastUpdated => 0,
+        context     => q{Form label in the configuration form of the iTransact module.},
+    },
+    'emailMessage help' => { 
+        message     => q{The message that will be appended to the email user will receive from ITransact.},
+        lastUpdated => 0,
+        context     => q{Hover help for the email message field in the configuration form of the iTransact module.},
+    },
+    'extra info' => { 
+        message     => q{Setting up your ecommerce site is as easy as these few steps:
 <p>
 <b>Step 1: Get A Merchant Account</b><br />
 <a target="_blank" href="http://www.itransact.com/info/merchacct.html">Register for a merchant account now to get started processing online transactions.</a>
@@ -124,11 +109,27 @@ Please note that some of these recipe's are only roughly correct. They don't 'fi
   <li><b>halfyearly</b> (differs 1 day each year, 2 days each leap year)</li>
   <li><b>yearly</b> (differs 1 day each leap year)</li>
 </ul><br />
-Also set the 'RECURRING POST-BACK URL' field in the Account Settings part of the virtual terminal to:|,
-		lastUpdated => 1189004971,
-		context => q|An informational message that's shown in the configuration form of this plugin.|
-	},
+Also set the 'RECURRING POST-BACK URL' field in the Account Settings part of the virtual terminal to:},
+        lastUpdated => 1189004971,
+        context     => q{An informational message that's shown in the configuration form of this plugin.},
+    },
+    'name' => { 
+        message     => q{Credit Card (ITransact)},
+        lastUpdated => 1247593695,
+        context     => q{Name of the ITransact Module},
+    },
+    'password' => { 
+        message     => q{Password},
+        lastUpdated => 0,
+        context     => q{Form label in the configuration form of the iTransact module.},
+    },
+    'password help' => { 
+        message     => q{The password for your ITransact account.},
+        lastUpdated => 0,
+        context     => q{Hover help for the password field in the configuration form of the iTransact module.},
+    },
 };
 
 1;
 
+#vim:ft=perl

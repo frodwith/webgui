@@ -366,7 +366,7 @@ sub definition {
     );
  
     push @{ $definition }, {
-        name        => $i18n->get('ITransact'),
+        name        => $i18n->get('name'),
         properties  => \%fields,
     };
 
