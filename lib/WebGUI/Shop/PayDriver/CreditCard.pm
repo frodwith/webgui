@@ -14,6 +14,10 @@ same information, the only difference is the servers you talk to.  Leaves you
 to handle recurring payments, processPayment, www_edit, and whatever else you
 want to - but the user-facing code is pretty much taken care of.
 
+=head2 METHODS
+
+The following methods are available from this class.
+
 =cut
 
 use base qw/WebGUI::Shop::PayDriver/;
@@ -50,7 +54,7 @@ sub _monthYear {
 
 =head2 appendCredentialVars
 
-Add template vars for www_getCredentials
+Add template vars for www_getCredentials.  Override this to add extra fields.
 
 =cut
 
