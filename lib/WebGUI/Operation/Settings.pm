@@ -549,6 +549,7 @@ sub definition {
         groupIdAdminVersionTag
         groupIdAdminWorkflow
         groupIdAdminWorkflowRun
+        groupIdPSGIAssets
     );
 
     for my $group (@groupSettings) {

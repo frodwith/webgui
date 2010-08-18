@@ -3880,6 +3880,14 @@ LongTruncOk=1</p>
         context     => q{The label for the Permissions tab of the Settings Admin panel},
     },
 
+    'settings groupIdPSGIAssets label' => {
+        message     => q{PSGI Assets},
+        lastUpdated => 0,
+    },
+    'settings groupIdPSGIAssets hoverHelp' => {
+        message     => q{Group that is allowed to create PSGI assets.},
+        lastUpdated => 0,
+    },
     'settings groupIdAdminActiveSessions label' => {
         message     => q{Active Sessions},
         lastUpdated => 0,
