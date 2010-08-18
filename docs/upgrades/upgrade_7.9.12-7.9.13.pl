@@ -29,41 +29,11 @@ my $quiet; # this line required
 
 
 my $session = start(); # this line required
-installPSGI($session);
+
+# upgrade functions go here
+
 finish($session); # this line required
 
-#----------------------------------------------------------------------------
-# install the PSGI wobject
-#
-sub installPSGI {
-    my $session = shift;
-    my ($db, $config, $setting) = $session->quick(qw(db config setting));
-    unless($db->quickScalar(q{show tables like 'Asset_PSGI'})) {
-        print "Creating Asset_PSGI table..." unless $quiet;
-        $db->write(q{
-            CREATE TABLE Asset_PSGI (
-                assetId      CHAR(22),
-                revisionDate BIGINT,
-                app          LONGTEXT,
-
-                PRIMARY KEY(assetId, revisionDate)
-            )
-        });
-        print "Done!\n" unless $quiet;
-    }
-    my $class = 'WebGUI::Asset::Wobject::PSGI';
-    unless($config->get("assets/$class")) {
-        print "Adding PSGI asset to config file...";
-        $config->addToHash(assets => $class => { category => 'utilities' });
-        print "Done!\n" unless $quiet;
-    }
-    my $sname = 'groupIdPSGIAssets';
-    unless ($setting->has($sname)) {
-        print "Adding $sname setting...";
-        $setting->add($sname => 3);
-        print "Done!\n" unless $quiet;
-    }
-}
 
 #----------------------------------------------------------------------------
 # Describe what our function does

@@ -15,89 +15,137 @@ use strict;
 
 use base qw(WebGUI::Asset::Wobject);
 
-use File::Temp qw(tmpnam);
-use WebGUI::International;
-use WebGUI::User;
 use HTTP::Status qw(status_message);
-use Scope::Guard qw(guard);
-use Digest::SHA q(sha1_hex);
+use Scope::Guard;
 
-#-------------------------------------------------------------------
+=head1 NAME
 
-=head2 canEdit ( )
+WebGUI::Asset::Wobject::PSGI
 
-Overridden so that one must be in the proper group to create these wobjects
-(since they're sort of dangerous)
+=head1 SYNOPSIS
+
+    package WebGUI::Asset::Wobject::MyCoolApp;
+    use base qw(WebGUI::Asset::Wobject::PSGI);
+
+    my $app = __PACKAGE__->compileFile('/path/to/app.psgi');
+
+    sub app { $app }
+
+    sub getName { 'My Cool App' }
+
+=head1 METHODS
 
 =cut
 
-sub canEdit {
-    my ( $self, $user ) = @_;
-    my $session = $self->session;
-    my $userId;
-    $user ||= $session->user;
-    if ( ref $user eq 'WebGUI::User' ) {
-        $userId = $user->userId;
+#-------------------------------------------------------------------
+
+=head2 app
+
+Override this in subclasses.  Should return your PSGI app.
+
+=cut
+
+sub app { die 'Abstract' }
+
+#-------------------------------------------------------------------
+
+=head2 badApp ( $env )
+
+Called when there's a problem executing the PSGI app.  By default, calls the
+superclass dispatch method.  It's called with the PSGI environment, although
+it isn't used by default.
+
+=cut
+
+sub badApp { shift->SUPER::dispatch }
+
+#-------------------------------------------------------------------
+
+=head2 callApp ( $app, $env )
+
+Calls the given PSGI app with the given environment and does some
+error-checking on the response.  Feel free to override.
+
+=cut
+
+sub callApp {
+    my ( $self, $app, $env ) = @_;
+    my $log = $self->session->log;
+    my $response = eval { $app->($env) };
+
+    if ( ( ref $response ne 'ARRAY' ) || $@ ) {
+        if ($@) {
+            $log->error("psgi app died with $@");
+        }
+        else {
+            $log->error(q"psgi app didn't return an arrayref");
+        }
+        return $self->badApp($env);
     }
-    else {
-        $userId = $user;
-        $user = WebGUI::User->new( $session, $userId );
-    }
 
-    my $group = $session->setting->get('groupIdPSGIAssets');
-    return $user->isInGroup($group) && $self->SUPER::canEdit($userId);
-} ## end sub canEdit
+    return $response;
+} ## end sub callApp
 
-# This code is adapated from Plack::Util::load_app.  The idea here is to dump
-# the code into a file, do() the file in a scratch package, and get rid of the
-# file.  We can't just eval the code -- there are several problems with that.
-# String-evalled code has access to its lexical environment (not good), and
-# it's harder to get it into a scratch package that way.  This is as sandboxed
-# as we can make it, although obviously the Full Power of Perl is here.
+#-------------------------------------------------------------------
 
-sub _compile {
-    my ( $chk, $code ) = @_;
-    my $name = tmpnam;
-    open my $fh, '>', $name;
-    print $fh $code or die "Could not print to $name: $!\n";
-    close $fh;
+=head2 compileFile ( path )
 
-    my $cleanup = guard { unlink $name };
-    eval sprintf( '{ package %s::_%s; do $name or die $@ || $! }', __PACKAGE__, $chk ) or die $@;
+Compiles the contents of the file given by path (like Plack::Util::load_app)
+in sandbox and returns the resulting app.  Intended to be called in
+subclasses -- see the Synopsis.
+
+=cut
+
+sub compileFile {
+    my ( $class, $name ) = @_;
+    my @letters = ( 'a' .. 'z', 'A' .. 'Z' );
+    my $gibberish = join '', map { $letters[ int( rand( scalar @letters ) ) ] } ( 1 .. 48 );
+    eval sprintf( '{ package %s::%s; do $name or die $@ || $! }', __PACKAGE__, $gibberish ) or die $@;
 }
 
 #-------------------------------------------------------------------
 
-=head2 definition ( )
+=head2 createEnv (pathInfo)
 
-See the superclass for documentation.
+Called by dispatch() to create the PSGI environment.
+
 
 =cut
 
-sub definition {
-    my ( $class, $session, $definition ) = @_;
-    my $i18n = WebGUI::International->new( $session, 'Asset_PSGI' );
-    my %properties = (
-        app => {
-            fieldType => 'codearea',
-            syntax    => 'perl',
-            label     => $i18n->get('app label'),
-            hoverHelp => $i18n->get('app description'),
-        }
-    );
-    my %def = (
-        assetName         => $i18n->get('assetName'),
-        icon              => 'psgi.png',
-        autoGenerateForms => 1,
-        tableName         => 'Asset_PSGI',
-        className         => __PACKAGE__,
-        properties        => \%properties,
-    );
-    push @$definition, \%def;
-    return $class->SUPER::definition( $session, $definition );
-} ## end sub definition
-
 my @psgiVersion = ( 1, 1 );
+
+sub createEnv {
+    my ( $self, $pathInfo ) = @_;
+    my $r     = $self->session->request;
+    my $table = $r->subprocess_env;
+    my $ssl   = $table->{HTTP_SSLPROXY} || do {
+        my $v = $table->{HTTPS};
+        $v && ( $v eq '1' || $v eq 'on' );
+    };
+
+    open my $errh, '>', \my $err;
+
+    return {
+        %$table,
+        'SCRIPT_NAME'       => $self->getUrl,
+        'PATH_INFO'         => $pathInfo,
+        'psgi.version'      => \@psgiVersion,
+        'psgi.url_scheme'   => $ssl ? 'https' : 'http',
+        'psgi.input'        => $r,
+        'psgi.errors'       => $errh,
+        'psgi.multithread'  => 0,
+        'psgi.multiprocess' => 1,
+        'psgi.run_once'     => 0,
+        'psgi.streaming'    => 0,
+        'psgi.nonblocking'  => 0,
+        'webgui.session'    => $self->session,
+        'webgui.asset'      => $self,
+        'webgui.cleanup'    => sub {
+            close $errh;
+            $self->printErr($err) if $err;
+        },
+    };
+} ## end sub createEnv
 
 #-------------------------------------------------------------------
 
@@ -112,94 +160,20 @@ it throws an exception, or returns an invalid response).
 
 sub dispatch {
     my ( $self, $fragment ) = @_;
-    my $session = $self->session;
-    my $func    = $session->form->get('func');
-    my $bail    = sub { $self->SUPER::dispatch($fragment) };
+    my $func = $self->session->form->get('func');
 
     if ( !$fragment && $func && $self->can("www_$func") ) {
-        return $bail->();
+        $self->SUPER::dispatch($fragment);
     }
 
-    my ( $url, $r, $http, $out, $log ) = $session->quick(qw(url request http output log));
+    my $env      = $self->createEnv($fragment);
+    my $cleanup  = Scope::Guard->new( $env->{'webgui.cleanup'} );
+    my $app      = $self->app || return $self->badApp($env);
+    my $response = $self->callApp( $app, $env );
 
-    my $app = $self->loadApp || return $bail->();
-
-    open my $errh, '>', \my $err;
-    my $cleanup = guard {
-        close $errh;
-        $log->error($err) if $err;
-    };
-
-    my $table = $r->subprocess_env;
-    my $ssl = $table->{HTTP_SSLPROXY} || do {
-        my $v = $table->{HTTPS};
-        $v && ( $v eq '1' || $v eq 'on' );
-    };
-
-    my %env = (
-        %$table,
-        'SCRIPT_NAME'       => $self->getUrl,
-        'PATH_INFO'         => $fragment,
-        'psgi.version'      => \@psgiVersion,
-        'psgi.url_scheme'   => $ssl ? 'https' : 'http',
-        'psgi.input'        => $r,
-        'psgi.errors'       => $errh,
-        'psgi.multithread'  => 0,
-        'psgi.multiprocess' => 1,
-        'psgi.run_once'     => 0,
-        'psgi.streaming'    => 0,
-        'psgi.nonblocking'  => 0,
-        'wgSession'         => $session,
-        'wgAsset'           => $self,
-    );
-
-    my $response = eval { $app->( \%env ) };
-    if ( ref $response ne 'ARRAY' || $@ ) {
-        if ($@) {
-            $log->error("psgi app died with $@");
-        }
-        else {
-            $log->error(q"psgi app didn't return an arrayref");
-        }
-        return $bail->();
-    }
-
-    my ( $status, $headers, $body ) = @$response;
-
-    $http->setStatus( $status, status_message($status) );
-
-    my $hout = $status =~ /^2/ ? $r->headers_out : $r->err_headers_out;
-    for my $i ( 0 .. $#$headers ) {
-        my ( $k, $v ) = @{$headers}[ $i, $i + 1 ];
-        my $lc = lc $k;
-        if ( $lc eq 'content-type' ) {
-            $http->setMimeType($v);
-        }
-        elsif ( $lc eq 'content-length' ) {
-            $r->set_content_length($v);
-        }
-        $hout->add( $k => $v );
-    }
-
-    $http->sendHeader();
-
-    if ( my $path = eval { $body->path } ) {
-        $http->setStreamedFile($body);
-    }
-    elsif ( ref $body eq 'ARRAY' ) {
-        $out->print($_) for @$body;
-    }
-    elsif ( eval { $body->can('getline') } ) {
-        while ( defined( my $line = $body->getline ) ) {
-            $out->print($line);
-        }
-    }
-    else {
-        $log->error("Don't know how to handle response $body");
-        return $bail->();
-    }
-
-    return 'chunked';
+    return ( ref $response eq 'ARRAY' )
+        ? $self->handleResponse($response)
+        : $response;
 } ## end sub dispatch
 
 #-------------------------------------------------------------------
@@ -215,25 +189,151 @@ sub getContentLastModified {time}
 
 #-------------------------------------------------------------------
 
-=head2 loadApp
+=head2 getName ( )
 
-Returns the CODE representing the PSGI app.  Code is only compiled once per
-modperl process (unless there is a compilation error), and thereafter is
-cached.
+Called as a class method to determine the name of your asset (see
+WebGUI::Asset).  You should override this.
 
 =cut
 
-my %apps;
+sub getName {'Untitled PSGI Application'}
 
-sub loadApp {
-    my $self = shift;
-    my $code = $self->get('app');
-    my $chk  = sha1_hex($code);
-    $apps{$chk} ||= do {
-        my $a = eval { _compile( $chk, $code ) };
-        $self->session->log->error($@) if ( !$a && $@ );
-        $a;
-    };
+#-------------------------------------------------------------------
+
+=head2 handleArray ( $array )
+
+Called by handleBody after http->sendHeader when the psgi app returned an
+arrayref.  By default, prints each member of the array to session->output in
+succession.
+
+=cut
+
+sub handleArray {
+    my ( $self, $array ) = @_;
+    my $out = $self->session->output;
+    $out->print($_) for @$array;
 }
+
+#-------------------------------------------------------------------
+
+=head2 handleBody ( $body )
+
+Called by handleResponse to deal with the response body.  Its return value is
+also returned from handleResponse (and thus dispatch).  By default, we
+sendHeader, print the body, and return chunked.
+
+=cut
+
+sub handleBody {
+    my ( $self, $body ) = @_;
+    $self->session->http->sendHeader();
+
+    if ( my $path = eval { $body->path } ) {
+        $self->handleFile($body);
+    }
+    elsif ( ref $body eq 'ARRAY' ) {
+        $self->handleArray($body);
+    }
+    elsif ( eval { $body->can('getline') } ) {
+        $self->handleIo($body);
+    }
+    else {
+        $self->session->log->error("Don't know how to handle response $body");
+        return $self->badApp;
+    }
+
+    return 'chunked';
+} ## end sub handleBody
+
+#-------------------------------------------------------------------
+
+=head2 handleFile ( $file )
+
+Called by handleBody to deal with real-live file responses.  Our default
+behavior is to hook the file onto http->setStreamedFile.
+
+=cut
+
+sub handleFile {
+    my ( $self, $file ) = @_;
+    $self->session->http->setStreamedFile($file);
+}
+
+#-------------------------------------------------------------------
+
+=head2 handleHeaders ( arrayref )
+
+Called by handleResponse to deal with the headers.  Our default behavior is to
+basically session->request->headers_out->add() them, with a couple of special
+cases.
+
+=cut
+
+sub handleHeaders {
+    my ( $self, $headers ) = @_;
+    my $session = $self->session;
+    my $r       = $session->request;
+    my $http    = $session->http;
+    my $status  = $http->getStatus;
+    my $success = $status >= 200 && $status < 300;
+    my $hout    = $success ? $r->headers_out : $r->err_headers_out;
+
+    for ( my $i = 0; $i < @$headers; $i += 2 ) {
+        my ( $k, $v ) = @{$headers}[ $i, $i + 1 ];
+        my $lc = lc $k;
+        if ( $lc eq 'content-type' ) {
+            $http->setMimeType($v);
+        }
+        elsif ( $lc eq 'content-length' ) {
+            $r->set_content_length($v);
+        }
+        $hout->add( $k => $v );
+    }
+} ## end sub handleHeaders
+
+#-------------------------------------------------------------------
+
+=head2 handleIo ( $io )
+
+Called by handleBody to deal with an objct that response to ->getline.  We
+keep calling it (and printing the result) until it returns undef.
+
+=cut
+
+sub handleIo {
+    my ( $self, $io ) = @_;
+    my $out = $self->session->output;
+    while ( defined( my $line = $io->getline ) ) {
+        $out->print($line);
+    }
+}
+
+#-------------------------------------------------------------------
+
+=head2 handleResponse ( $response )
+
+Set status, call handleHeaders and handleBody.  If you want to do something
+wholly different with the response, here's the place.
+
+=cut
+
+sub handleResponse {
+    my ( $self, $response ) = @_;
+    my ( $status, $headers, $body ) = @$response;
+    $self->session->http->setStatus( $status, status_message($status) );
+    $self->handleHeaders($headers);
+    return $self->handleBody($body);
+}
+
+#-------------------------------------------------------------------
+
+=head2 printErr ( $error )
+
+Called with the contents of the psgi app's error stream by default.  We
+normally handle this by doing session->log->error($error).
+
+=cut
+
+sub printErr { $_[0]->session->log->error( $_[1] ) }
 
 1;
