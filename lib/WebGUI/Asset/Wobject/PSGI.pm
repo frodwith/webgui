@@ -8,6 +8,21 @@
 # http://www.plainblack.com                     info@plainblack.com
 #-------------------------------------------------------------------
 
+package WebGUI::Asset::Wobject::PSGI::Writer;
+
+sub new {
+    my ($class, $session) = @_;
+    my $r = $session->request;
+    bless sub { $r->print(@_); $r->rflush }, $class;
+}
+
+sub write {
+    my $sub = shift;
+    goto &$sub;
+}
+
+sub close { }
+
 package WebGUI::Asset::Wobject::PSGI;
 
 use warnings;
@@ -51,13 +66,13 @@ sub app { die 'Abstract' }
 
 =head2 badApp ( $env )
 
-Called when there's a problem executing the PSGI app.  By default, calls the
-superclass dispatch method.  It's called with the PSGI environment, although
-it isn't used by default.
+Called when there's a problem executing the PSGI app.  By default, returns a
+bare 500 response. It's called with the PSGI environment, although it isn't
+used by default.
 
 =cut
 
-sub badApp { shift->SUPER::dispatch }
+sub badApp { [500, [], [] ] }
 
 #-------------------------------------------------------------------
 
@@ -69,21 +84,24 @@ error-checking on the response.  Feel free to override.
 =cut
 
 sub callApp {
-    my ( $self, $app, $env ) = @_;
+    my ( $self, $app, $env, $k ) = @_;
     my $log = $self->session->log;
     my $response = eval { $app->($env) };
-
-    if ( ( ref $response ne 'ARRAY' ) || $@ ) {
-        if ($@) {
-            $log->error("psgi app died with $@");
-        }
-        else {
-            $log->error(q"psgi app didn't return an arrayref");
-        }
-        return $self->badApp($env);
+    
+    if ( !$response || $@ ) {
+        $log->error("psgi app died with $@");
+        $k->($self->badApp($env));
     }
-
-    return $response;
+    elsif (ref $response eq 'ARRAY') {
+        $k->($response);
+    }
+    elsif (ref $response eq 'CODE') {
+        $response->($k);
+    }
+    else {
+        $log->error("Invalid response: $response");
+        $k->($self->badApp($env));
+    }
 } ## end sub callApp
 
 #-------------------------------------------------------------------
@@ -136,7 +154,7 @@ sub createEnv {
         'psgi.multithread'  => 0,
         'psgi.multiprocess' => 1,
         'psgi.run_once'     => 0,
-        'psgi.streaming'    => 0,
+        'psgi.streaming'    => 1,
         'psgi.nonblocking'  => 0,
         'webgui.session'    => $self->session,
         'webgui.asset'      => $self,
@@ -169,11 +187,9 @@ sub dispatch {
     my $env      = $self->createEnv($fragment);
     my $cleanup  = Scope::Guard->new( $env->{'webgui.cleanup'} );
     my $app      = $self->app || return $self->badApp($env);
-    my $response = $self->callApp( $app, $env );
+    $self->callApp($app, $env, sub { $self->handleResponse(shift) });
 
-    return ( ref $response eq 'ARRAY' )
-        ? $self->handleResponse($response)
-        : $response;
+    return 'chunked';
 } ## end sub dispatch
 
 #-------------------------------------------------------------------
@@ -202,9 +218,8 @@ sub getName {'Untitled PSGI Application'}
 
 =head2 handleArray ( $array )
 
-Called by handleBody after http->sendHeader when the psgi app returned an
-arrayref.  By default, prints each member of the array to session->output in
-succession.
+Called by handleBody r when the psgi app returned an arrayref.  By default,
+prints each member of the array to session->output in succession.
 
 =cut
 
@@ -220,29 +235,30 @@ sub handleArray {
 
 Called by handleResponse to deal with the response body.  Its return value is
 also returned from handleResponse (and thus dispatch).  By default, we
-sendHeader, print the body, and return chunked.
+print the body somehow (or return a writer in the streaming case).
 
 =cut
 
 sub handleBody {
     my ( $self, $body ) = @_;
-    $self->session->http->sendHeader();
+
+    if ( !defined $body ) {
+        return WebGUI::Asset::Wobject::PSGI::Writer->new($self->session);
+    }
 
     if ( my $path = eval { $body->path } ) {
-        $self->handleFile($body);
-    }
-    elsif ( ref $body eq 'ARRAY' ) {
-        $self->handleArray($body);
-    }
-    elsif ( eval { $body->can('getline') } ) {
-        $self->handleIo($body);
-    }
-    else {
-        $self->session->log->error("Don't know how to handle response $body");
-        return $self->badApp;
+        return $self->handleFile($body);
     }
 
-    return 'chunked';
+    if ( ref $body eq 'ARRAY' ) {
+        return $self->handleArray($body);
+    }
+
+    if ( eval { $body->can('getline') } ) {
+        return $self->handleIo($body);
+    }
+
+    $self->session->log->error("Don't know how to handle response $body");
 } ## end sub handleBody
 
 #-------------------------------------------------------------------
@@ -265,7 +281,7 @@ sub handleFile {
 
 Called by handleResponse to deal with the headers.  Our default behavior is to
 basically session->request->headers_out->add() them, with a couple of special
-cases.
+cases, and then call http->sendHeader().
 
 =cut
 
@@ -289,6 +305,8 @@ sub handleHeaders {
         }
         $hout->add( $k => $v );
     }
+
+    $http->sendHeader();
 } ## end sub handleHeaders
 
 #-------------------------------------------------------------------
@@ -322,7 +340,7 @@ sub handleResponse {
     my ( $status, $headers, $body ) = @$response;
     $self->session->http->setStatus( $status, status_message($status) );
     $self->handleHeaders($headers);
-    return $self->handleBody($body);
+    $self->handleBody($body);
 }
 
 #-------------------------------------------------------------------
