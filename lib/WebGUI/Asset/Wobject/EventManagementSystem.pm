@@ -2016,7 +2016,7 @@ sub www_importEvents {
 		-label   => $i18n->get('ignore first line'),
 		-name    => 'ignore_first_line',
 		-hoverHelp => $i18n->get('import hoverhelp first line'),
-		-defaultValue   => $form->param('ignore_first_line'),
+		-defaultValue   => scalar $form->param('ignore_first_line'),
 	);
 
 	# create the std & meta fields part of the form
@@ -2033,7 +2033,7 @@ sub www_importEvents {
 		name				=> 'fieldsToImport',
 		defaultValue		=> \@defaultImportableFields,
 		options				=> \%importableFields,
-		value				=> $form->get('fieldsToImport'),
+		value				=> scalar $form->get('fieldsToImport'),
 	);
 
 	$f->submit(-value=>$i18n->get('import events'));
@@ -2456,7 +2456,8 @@ Method to move an event down one position in display order
 sub www_moveEventMetaFieldDown {
 	my $self = shift;
 	return $self->session->privilege->insufficient unless ($self->canEdit);
-	$self->moveCollateralDown('EMSEventMetaField', 'fieldId', $self->session->form->get("fieldId"));
+    my $fieldId = $self->session->form->get("fieldId");
+	$self->moveCollateralDown('EMSEventMetaField', 'fieldId', $fieldId);
 	return $self->www_manageEventMetaFields;
 }
 
@@ -2471,7 +2472,8 @@ Method to move an event metdata field up one position in display order
 sub www_moveEventMetaFieldUp {
 	my $self = shift;
 	return $self->session->privilege->insufficient unless ($self->canEdit);
-	$self->moveCollateralUp('EMSEventMetaField', 'fieldId', $self->session->form->get("fieldId"));
+    my $fieldId = $self->session->form->get("fieldId");
+	$self->moveCollateralUp('EMSEventMetaField', 'fieldId', $fieldId);
 	return $self->www_manageEventMetaFields;
 }
 

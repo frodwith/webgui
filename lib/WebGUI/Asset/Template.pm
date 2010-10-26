@@ -48,6 +48,34 @@ These methods are available from this class:
 
 #-------------------------------------------------------------------
 
+=head2 addAttachments ( new_attachments )
+
+Adds attachments to this template.  New attachments are added to the end of the current set of
+attachments.
+
+=head3 new_attachments
+
+An arrayref of hashrefs, where each hashref should have at least url and type.  All
+other keys will be ignored.
+
+=cut
+
+sub addAttachments {
+    my ($self, $new_attachments) = @_;
+    my $attachments = $self->getAttachments();
+
+    foreach my $a (@{ $new_attachments }) {
+        push @{ $attachments }, {
+            url  => $a->{url},
+            type => $a->{type},
+        };
+    }
+    my $json = JSON->new->encode( $attachments );
+    $self->update({ attachmentsJson => $json, });
+}
+
+#-------------------------------------------------------------------
+
 =head2 cut ( )
 
 Extend the base method to handle cutting the User Function Style template and destroying your site.
@@ -321,7 +349,7 @@ sub getEditForm {
     $tabform->getTab('properties')->jsonTable(
         name        => 'attachmentsJson', 
         value       => $self->get('attachmentsJson'),
-        label       => $i18n->get("attachments display label"),
+        label       => $i18n->get("attachment display label"),
         fields      => [
             {
                 type            => "text",
@@ -497,7 +525,6 @@ sub packTemplate {
     my ( $self, $template ) = @_;
     my $packed  = $template;
     HTML::Packer::minify( \$packed, {
-        remove_comments     => 1,
         do_javascript       => "shrink",
         do_stylesheet       => "minify",
     } );
@@ -700,6 +727,32 @@ sub purge {
         $self->session->setting->set('userFunctionStyleId', 'PBtmpl0000000000000060');
     }
 	return $returnValue;
+}
+
+#-------------------------------------------------------------------
+
+=head2 removeAttachments ( urls )
+
+Removes attachments. 
+
+=head3 urls
+
+C<urls> is an arrayref of URLs to remove. If C<urls>
+is not defined, will remove all attachments for this revision.
+
+=cut
+
+sub removeAttachments {
+    my ($self, $urls) = @_;
+
+    my @attachments = ();
+
+    if ($urls) {
+        @attachments = grep { !isIn($_->{url}, @{ $urls }) } @{ $self->getAttachments() };
+    }
+
+    my $json = JSON->new->encode( \@attachments );
+    $self->update({ attachmentsJson => $json, });
 }
 
 #-------------------------------------------------------------------

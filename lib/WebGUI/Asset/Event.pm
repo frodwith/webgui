@@ -1345,10 +1345,14 @@ sub processPropertiesFromFormPost {
         WebGUI::VersionTag->new($session, $self->get('tagId'))->setWorking;
     }
 
-    ### Form is verified
-    # Events are always hidden from navigation
+    ### Form is verified, fix properties
+    if (!$session->form->hasParam('groupIdView')) {
+        $self->update({
+            groupIdView     => $self->getParent->get('groupIdView'),
+        });
+    }
 
-    if (!$self->get("groupIdEdit")) {
+    if (!$session->form->hasParam('groupIdEdit')) {
         my $groupIdEdit =  $self->getParent->get("groupIdEventEdit")
                         || $self->getParent->get("groupIdEdit")
                         ;
@@ -1395,7 +1399,7 @@ sub processPropertiesFromFormPost {
     my $assetId = $self->get('assetId');
     my $revisionDate = $self->get('revisionDate');
 
-    $session->db->write("UPDATE Event SET sequenceNumber =? WHERE assetId = ? AND revisionDate =?",[($form->param('sequenceNumber') || $top_val), $assetId, $revisionDate]);
+    $session->db->write("UPDATE Event SET sequenceNumber =? WHERE assetId = ? AND revisionDate =?",[(scalar($form->param('sequenceNumber')) || $top_val), $assetId, $revisionDate]);
 
 
     # Pre-process Related Links and manage changes
@@ -1707,8 +1711,37 @@ Wrap update so that isHidden is always set to be a 1.
 =cut
 
 sub update {
-    my $self = shift;
+    my $self       = shift;
     my $properties = shift;
+    my $session    = $self->session;
+    if (my $startTime = $properties->{startTime}) {
+        my ($startHour, $startMinute, $startSecond) = $startTime =~ /^ (\d+) : (\d+) (?: :(\d+)) /x;
+        if ($startHour > 23) {
+            $startHour = 0;
+            my $startDate = exists $properties->{startDate} ? $properties->{startDate} : $self->get('startDate');
+            $session->log->warn('startDate: '. $startDate);
+            my $startDt = WebGUI::DateTime->new($session, $startDate);
+            $startDt->add(days => 1);
+            $properties->{startDate} = $startDt->toMysqlDate;
+            $session->log->warn('startDate: '. $properties->{startDate});
+            $startSecond             = '00' if ! $startSecond;
+            $properties->{startTime} = sprintf '%02d:%02d:%02d', $startHour, $startMinute, $startSecond;
+        }
+    }
+    if (my $endTime = $properties->{endTime}) {
+        my ($endHour, $endMinute, $endSecond) = $endTime =~ /^ (\d+) : (\d+) (?: :(\d+)) /x;
+        if ($endHour > 23) {
+            $endHour = 0;
+            my $endDate = exists $properties->{endDate} ? $properties->{endDate} : $self->get('endDate');
+            $session->log->warn('endDate: '. $endDate);
+            my $endDt = WebGUI::DateTime->new($session, $endDate);
+            $endDt->add(days => 1);
+            $properties->{endDate} = $endDt->toMysqlDate;
+            $session->log->warn('endDate: '. $properties->{endDate});
+            $endSecond             = '00' if ! $endSecond;
+            $properties->{endTime} = sprintf '%02d:%02d:%02d', $endHour, $endMinute, $endSecond;
+        }
+    }
     return $self->SUPER::update({%$properties, isHidden => 1});
 }
 

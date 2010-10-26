@@ -68,6 +68,7 @@ checkModule("Test::More",                   0.82,      2 );
 checkModule("Test::MockObject",             1.02,      2 );
 checkModule("Test::Deep",                   0.095,       );
 checkModule("Test::Exception",              0.27,      2 );
+checkModule("Test::Differences",            0.5,       2 );
 checkModule("Test::Class",                  0.31,      2 );
 checkModule("Pod::Coverage",                0.19,      2 );
 checkModule("Text::Balanced",               2.00,      2 );
@@ -141,9 +142,12 @@ checkModule("Locales",                      "0.10"       );
 checkModule("Test::Harness",                "3.17"       );
 checkModule("DateTime::Event::ICal",        "0.10"       );
 checkModule("Cache::FastMmap",              "1.35"       );
+checkModule("Test::Tester",                 "0"          );
+checkModule("Test::Log::Dispatch",          "0"          );
 checkModule("CHI",                          "0.34"       );
 checkModule('IO::Socket::SSL',                           );
 checkModule('Net::Twitter',                 "3.13006"    );
+checkModule('PerlIO::eol',                  "0.14"       );
 
 failAndExit("Required modules are missing, running no more checks.") if $missingModule;
 

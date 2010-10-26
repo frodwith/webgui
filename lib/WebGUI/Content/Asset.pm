@@ -63,6 +63,7 @@ The URL for this request.
 sub dispatch {
     my $session      = shift;
 	my $assetUrl     = shift;
+    $assetUrl        =~ s{/$}{};
     my $permutations = getUrlPermutations($assetUrl);
     foreach my $url (@{ $permutations }) {
         if (my $asset = getAsset($session, $url)) {
@@ -84,6 +85,7 @@ sub dispatch {
             return $output if defined $output;
         }
     }
+    $session->clearAsset;
     if ($session->var->isAdminOn) {
         my $asset = WebGUI::Asset->newByUrl($session, $session->url->getRefererUrl) || WebGUI::Asset->getDefault($session);
         return $asset->addMissing($assetUrl);

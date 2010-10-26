@@ -20,6 +20,8 @@ use WebGUI::Form::File;
 use WebGUI::DateTime;
 use base 'WebGUI::Asset::Wobject';
 use Data::Dumper;
+use PerlIO::eol qw/NATIVE/;
+use WebGUI::ProgressBar;
 
 
 #-------------------------------------------------------------------
@@ -445,8 +447,6 @@ sub copyThingData {
     return undef unless $self->canEditThingData($thingId, $thingDataId);
 
     my $origCollateral = $self->getCollateral("Thingy_".$thingId, "thingDataId", $thingDataId);
-    use Data::Dumper;
-    $session->log->warn(Dumper $origCollateral);
     $origCollateral->{thingDataId} = "new";
     ##Get all fields
     my $fields = $db->buildArrayRefOfHashRefs('select * from Thingy_fields where assetId=? and thingId=?'
@@ -2204,7 +2204,7 @@ sub www_editThingSave {
         my $displayInSearch = $self->session->form->process("displayInSearch_".$field->{fieldId}) || 0;
         my $searchIn = $self->session->form->process("searchIn_".$field->{fieldId}) || 0;
 
-        $self->session->db->write("update Thingy_fields set display = ".$display.", viewScreenTitle = ".$viewScreenTitle.", displayinSearch = ".$displayInSearch.", searchIn = ".$searchIn." where fieldId = ".$self->session->db->quote($field->{fieldId})." and thingId = ".$self->session->db->quote($thingId));
+        $self->session->db->write("update Thingy_fields set display = ?, viewScreenTitle = ?, displayinSearch = ?, searchIn = ? where fieldId = ? and thingId = ?",[$display, $viewScreenTitle, $displayInSearch, $searchIn, $field->{fieldId}, $thingId]);
     }
     return $self->www_manage;
 }
@@ -2645,9 +2645,6 @@ sub www_editThingDataSaveViaAjax {
     }
 
     my $thingProperties = $self->getThing($thingId);
-    use Data::Dumper;
-    warn $thingId;
-    warn Dumper $thingProperties;
     if ($thingProperties->{thingId}){
         return $session->privilege->insufficient() unless $self->canEditThingData($thingId, $thingDataId
             ,$thingProperties);
@@ -2667,7 +2664,7 @@ sub www_editThingDataSaveViaAjax {
         return '{}';
     }
     else {
-        warn "thingId not found in thingProperties\n";
+        $session->log->warn("thingId ".$thingProperties->{thingId}." not found in thingProperties");
         $session->http->setStatus("404", "Not Found");
         return JSON->new->encode({message => "The thingId you requested can not be found."});
     }
@@ -2690,6 +2687,11 @@ sub www_export {
     my $thingProperties = $self->getThing($thingId);
     return $session->privilege->insufficient() unless $self->hasPrivileges($thingProperties->{groupIdExport});
    
+    my $i18n = WebGUI::International->new($session, 'Asset_Thingy');
+    my $pb = WebGUI::ProgressBar->new($session);
+    $pb->start($i18n->get('export label').' '.$thingProperties->{label}, $session->url->extras('assets/thingy.gif'));
+    $pb->update($i18n->get('Creating column headers'));
+    my $tempStorage = WebGUI::Storage->createTemp($session);
     $fields = $session->db->read('select * from Thingy_fields where assetId =? and thingId = ? order by sequenceNumber',
         [$self->get("assetId"),$thingId]);
     while (my $field = $fields->hashRef) {
@@ -2711,9 +2713,13 @@ sub www_export {
 
     ### Loop through the returned structure and put it through Text::CSV
     # Column heads
-    $out = WebGUI::Text::joinCSV(@fieldLabels);
+    my $csv_filename = 'export_'.$thingProperties->{label}.'.csv';
+    $tempStorage->addFileFromScalar($csv_filename, WebGUI::Text::joinCSV(@fieldLabels));
+    open my $CSV, '>', $tempStorage->getPath($csv_filename);
 
     # Data lines
+    $pb->update($i18n->get('Writing data'));
+    my $rowCounter = 0;
     while (my $data = $sth->hashRef) {
         my @fieldValues;
         foreach my $field (@fields){
@@ -2722,19 +2728,20 @@ sub www_export {
             my $value = $self->getFieldValue($data->{"field_".$fieldId},$field->{properties},"%y-%m-%d","%y-%m-%d %j:%n:%s");
             push(@fieldValues, $value);
         }
-        foreach my $metaDataField (@metaDataFields){
-            push(@fieldValues,$data->{$metaDataField});
+        if ($thingProperties->{exportMetaData}) {
+            foreach my $metaDataField (@metaDataFields){
+                push(@fieldValues,$data->{$metaDataField});
+            }
         }
-        $out .= "\n".WebGUI::Text::joinCSV(
-        @fieldValues
-        );
+        print $CSV "\n".WebGUI::Text::joinCSV( @fieldValues );
+        #if (! ++$rowCounter % 25) {
+            $pb->update($i18n->get('Writing data'));
+        #}
     }
-    
-    $fileName = "export_".$thingProperties->{label}.".csv";
-    $self->session->http->setFilename($fileName,"application/octet-stream");
-    $self->session->http->sendHeader;
-    return $out;
+    close $CSV;
 
+    $pb->update(sprintf q|<a href="%s">%s</a>|, $self->getUrl, sprintf($i18n->get('Return to %s'), $thingProperties->{label}));
+    return $pb->finish($tempStorage->getUrl($csv_filename));
 }
 
 #-------------------------------------------------------------------
@@ -2855,7 +2862,7 @@ sub www_import {
         next unless ($storage->getFileExtension($file) eq "csv");
         
         $error->info("Found import file $file");
-        open my $importFile,"<",$storage->getPath($file);
+        open my $importFile,"<:raw:eol(NATIVE)",$storage->getPath($file);
         my $lineNumber = 0;
         my @data = ();
         
@@ -3406,6 +3413,11 @@ sequenceNumber');
         push(@searchResult_loop,\%templateVars);
     }
     $var->{searchResult_loop} = \@searchResult_loop;    
+    
+    # Also expose the search results in the template as a json-encoded string
+    # so that people can e.g. visualise the results via Javascript
+    $var->{searchResult_json} = JSON->new->encode(\@searchResult_loop);
+    
     $p->appendTemplateVars($var);
 
     $var->{"form_start"} = WebGUI::Form::formHeader($self->session,{action=>$self->getUrl,method=>'GET'})

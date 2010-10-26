@@ -399,25 +399,6 @@ sub canStartThread {
 
 #-------------------------------------------------------------------
 
-=head2 canView ( [ $userId ] )
-
-Extends the base method to also allow users who canPost to the CS.
-
-=head3 $userId
-
-A userId to check for edit permissions. If $userId is false, then it checks
-the current session user.
-
-=cut
-
-sub canView {
-	my $self = shift;
-        my $userId  = shift     || $self->session->user->userId;
-	return $self->next::method( $userId ) || $self->canPost( $userId );
-}
-
-#-------------------------------------------------------------------
-
 =head2 commit 
 
 Extend the base method to handle making a cron job for fetching mail for the CS.  The
@@ -575,6 +556,7 @@ sub definition {
 			tab=>'mail',
 			label=>$i18n->get("mail account"),
 			hoverHelp=>$i18n->get("mail account help"),
+            extras => 'autocomplete="off"',
 			},
 		mailPassword=>{
 			fieldType=>"password",
@@ -582,6 +564,7 @@ sub definition {
 			tab=>'mail',
 			label=>$i18n->get("mail password"),
 			hoverHelp=>$i18n->get("mail password help"),
+            extras => 'autocomplete="off"',
 			},
 		mailAddress=>{
 			fieldType=>"email",

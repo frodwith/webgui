@@ -17,6 +17,7 @@ use FindBin;
 use strict;
 use lib "$FindBin::Bin/../lib";
 use Test::More;
+use Test::MockObject::Extends;
 use Test::Deep;
 use Data::Dumper;
 use WebGUI::Test; # Must use this before any other WebGUI modules
@@ -78,7 +79,7 @@ my $td
         url             => 'testdispatch',
     } );
 
-my $utf8_url = "viel-spa\x{00DF}";
+my $utf8_url = "Viel-spa\x{00DF}";
 utf8::upgrade $utf8_url;
 my $utf8
     = WebGUI::Asset->getImportNode( $session )->addChild( {
@@ -92,7 +93,7 @@ WebGUI::Test->addToCleanup( WebGUI::VersionTag->getWorking( $session ) );
 #----------------------------------------------------------------------------
 # Tests
 
-plan tests => 20;        # Increment this number for each test you create
+plan tests => 25;        # Increment this number for each test you create
 
 #----------------------------------------------------------------------------
 # test getUrlPermutation( url ) method
@@ -137,14 +138,22 @@ cmp_deeply(
     [ $utf8_url ],
     "UTF-8 handling for URLs",
 );
+cmp_deeply(
+    WebGUI::Content::Asset::getUrlPermutations( "/one/two/three/" ),
+    [ '/one/two/three', '/one/two', '/one', ],
+    "trailing slashes are ignored",
+);
 
 #----------------------------------------------------------------------------
 # test dispatch( session, url ) method
 is ($session->asset, undef, 'session asset is not defined, yet');
 $output = WebGUI::Content::Asset::dispatch( $session, "testdispatch" );
 is $output, "www_view one", "Regular www_view";
-
 is $session->asset && $session->asset->getId, $td->getId, 'dispatch set the session asset';
+
+$output = WebGUI::Content::Asset::dispatch( $session, "testdispatch/" );
+is $output, "www_view one", "trailing slashes are ignored";
+
 
 my $_asset = WebGUI::Asset->newByUrl($session, $utf8_url);
 isa_ok $_asset, 'WebGUI::Asset::TestDispatch';
@@ -203,5 +212,26 @@ $session->setting->set('defaultPage', $td->getId);
 $output  = WebGUI::Content::Asset::dispatch( $session );
 is $output, 'www_view one', 'an empty URL returns the default asset';
 $session->setting->set('defaultPage', $originalDefaultPage);
+
+# Test that requesting a URL that doesn't exist, but one of the permutations does exist, returns undef
+
+$session->request->setup_body({ });
+my $nonexistant_url = WebGUI::Asset->getDefault($session)->get('url');
+$nonexistant_url = join '/', $nonexistant_url, 'nothing_here_to_see';
+$output  = WebGUI::Content::Asset::dispatch( $session, $nonexistant_url );
+is $output, undef, 'getting a URL which does not exist returns undef';
+is $session->asset, undef, '... session asset is not set';
+
+use WebGUI::Asset::RssAspectDummy;
+my $dummy = WebGUI::Asset->getImportNode($session)->addChild({
+    className   => 'WebGUI::Asset::RssAspectDummy',
+    url         => '/home/shawshank',
+    title       => 'Dummy Title',
+    synopsis    => 'Dummy Synopsis',
+    description => 'Dummy Description',
+});
+WebGUI::Test->addToCleanup($dummy);
+$output  = WebGUI::Content::Asset::dispatch( $session, '/home/shawshank/no-child-here' );
+is $output, undef, 'RSS Aspect propagates the fragment';
 
 #vim:ft=perl

@@ -659,6 +659,12 @@ Simply replace "key1"/"value1" with your own name/value pairs},
         context => q|Description of a tmpl_var for the template help.|,
     },
 
+    'searchResult_json' => {
+        message => q|JSON-encoded version of searchResult_loop so that you can access the data in Javascript|,
+        lastUpdated => 1285094918,
+        context => q|Description of a tmpl_var for the template help.|,
+    },
+
     'things_loop' => {
         message => q|A loop containing the Things that are defined for this Thingy Asset, with links to management
 functions for those Things|,
@@ -1119,6 +1125,24 @@ search has been done.|,
     'other thing field missing message' => {
         message => q|The field from the other Thing does not exist.|,
         lastUpdated => 1231180362,
+    },
+
+    'Creating column headers' => {
+        message => q|Creating column headers.|,
+        lastUpdated => 1231180362,
+        context => q|Status message in the Export Thingy progress bar.|,
+    },
+
+    'Writing data' => {
+        message => q|Writing data.|,
+        lastUpdated => 1231180362,
+        context => q|Status message in the Export Thingy progress bar.|,
+    },
+
+    'Return to %s' => {
+        message => q|Return to %s.|,
+        lastUpdated => 1231180362,
+        context => q|Status message in the Export Thingy progress bar. %s is the name of the Thing that is being exported.|,
     },
 
 };

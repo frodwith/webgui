@@ -1,3 +1,83 @@
+7.10.4
+ - fixed #11920: Defaul DataForm emails missing entries.
+ - fixed #11921: DataForm emails contain 1 table per field
+ - fixed #11922: Help tempalte is squatting on a good URL
+ - fixed #11923: Collaboration System Mail Cron Errors
+ - fixed #11925: Some problems in Thingy export (metaData values in CSV export)
+ - fixed #11925: Some problems in Thingy export (export times out on Things with many rows)
+ - refixed #11902: forums bug (works without mobile style being set)
+
+7.10.3
+ - fixed #11903: Unnecessary debug in Thingy
+ - fixed #11908: Inbox messages linger after deleting a user
+ - fixed #11909: Wrong message count in the inbox
+ - fixed #11773: Form injection in the EMS event ordering code.
+ - fixed #11773: SQL injection vulnerability in Edit Thing form processing code.
+ - fixed #11906: Carousel slide height problems
+ - fixed #11900: Request Approval for Version Tag Workflow activity can't select --Continue with this workflow
+ - fixed #11898: String eval used in Image::Graph
+ - fixed #11913: Editing the survey doesn't work
+ - fixed #11915: Date macro returns hour value w/ leading space
+ - fixed #11901: NotifyAboutVersionTag includes URL, even when inappropriate
+ - fixed #11902: forums bug
+ - fixed #11912: Corrupt cookie causes server 500 errors
+ - fixed #11919: Survey rendering with section text
+ - fixed #11916: Collaboration System security
+ - fixed #11918: Make password recovery email templatable
+ - fixed #11905: CrystalX nav breaks with 3rd level assets
+
+7.10.2
+ - fixed #11884: Editing Templates impossible / Code editor not loaded
+ - recommitted ukplayer. Removal broke Matrix. Licencing information was available but overlooked. 
+ - fixed #11883: Wiki "Add page" link does not encode special chars
+ - fixed #11886: profile knows it's me, but doesn't display edit
+ - fixed #11789: Date form reports 1 day earlier on Edit for the time zone corresponding to Europe/Berlin.
+ - fixed #11894: Europe London timezone decrements birth date
+ - fixed #11857: make page printable?
+ - fixed #11891: Shop credit not displayed in payment method screen
+ - fixed #11871: Metadata display and criteria builder problems
+ - fixed #10189: pbworkflow000000000007 Hanging
+ - fixed #11897: Continue to the site link loses current page
+ - fixed #11618: Code Editor: Content loses it's whitespace formatting
+
+7.10.1
+ - fixed #11851: Story Topic: top story variables should be available all the time
+ - fixed #11854: CS doesn't return Not Found page
+ - fixed #11746: Thingy import CSV only supports one line ending
+ - fixed #11833: Recheck for losing Product Images
+ - fixed #11788: Calendar - Can't enter Midnight - Broke page layout
+ - fixed #11855: Purging Shortcut from Trash causes loop
+ - fixed #11865: URL with slash no longer works.
+ - fixed #11861: addAttachment method removed from WebGUI 7 thus breaking the API
+ - fixed #11868: WebGUI::Session::Form::validToken throws unnecessary warnings
+ - fixed #11875: Error loading empty module
+ - fixed #11873: findBrokenAssets.pl doesn't support custom assets
+ - added findBrokenAssets.pl shows the classname of broken assets (William McKee, Knowmad Technologies)
+ - fixed #11866: Default ordering for Zip files is wrong
+ - fixed: typo in the Gallery Add Archive default templateId.
+ - fixed #11876: packing templates, snippets, headtags removes conditional CSS comments
+ - fixed #11877: Criteria Builder on "shortcut by alternate criteria" gets ugly with many checkbox items
+ - fixed #11878: Addons title not internationalized
+ - added Thingy template variable to permit Javascript visualisation of search results (Patrick Donelan, SDH Consulting Group)
+ - fixed #11846: Dataform fail HeadBlock inclusions
+ - added #10333: Head tags for dataform form fields
+
+7.10.0
+ - fixed #11812: Checking www_ajaxSave's response in the cart js, urlencoding post parameters
+ - added: Link in the Admin Console to the Addons section on webgui.org
+ - added: Labels in the Shopping Cart addresses are optional.
+ - added: template variable downgrading so that using we can safely pass
+   template variables TT would understand to HTML::Template templates -- see
+   WebGUI::Asset::Template::Parser->downgrade for details.
+ - fixed #11813: Payment confirmation screen dollar amount
+ - fixed #11832: Admin Session Interface broken
+ - fixed: Attachment label in the Template is missing
+ - fixed #11810: Attachment list broken in template
+ - fixed #11814: upgrade script removes cache too aggresively (Ernesto Hernández-Novich)
+ - fixed #11827: CS rich edit bug
+ - fixed #11825: Questionable attachmentsJson in AssetReport template
+ - fixed #11796: Gallery Drag & Drop broken in IE 7 (again)
+
 7.9.13
  - fixed #11783: Instances deleted during realtime run
  - fixed #11781: Thingy wrong retorn value from Ajax method
@@ -6,6 +86,11 @@
  - fixed #11777: Thingy search on yes no field fails
  - fixed #11787: Gallery resolutions wrongly ordered
  - fixed #11785: Article title / URL with äÄöÖüÜ (reopen #11683)
+ - fixed #11799: 7.8.24->7.9.11 upgrade breaks on custom Paydrivers
+ - fixed #11798: Gallery request non existent image
+ - fixed #11800: Group to view for new events defaults to 'Everyone'
+ - fixed #11796: Gallery Drag & Drop broken in IE 7
+ - fixed #11795: Wrong display UTF8 chars in Syndicated content (#12621)
 
 7.9.12
  - webgui.org homepage gives 404  (#11778)
@@ -1069,6 +1154,7 @@
  - fixed #10158: Matrix 2.0 - Screenshots rendering poorly
  - administer.js now has a much improved handling of the slider algorithm, plus some refactored code.  Users will not notice anything.
  - Survey slider answer updates, now update all the answers for max,min,step settings since only the first answers values are used anyways.
+
 7.7.3
  - fixed #10094: double explanation in thread help
  - rfe #9612: Carousel Wobject (was Widget Wobject) (SDH Consulting Group)

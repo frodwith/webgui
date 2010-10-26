@@ -84,6 +84,45 @@ sub _createForm {
 }
 
 #-------------------------------------------------------------------
+
+=head2 _getFormFields ( )
+
+Return a list of form fields for this DataForm.
+
+=cut
+
+sub _getFormFields {
+    my $self          = shift;
+    my $session       = $self->session;
+    my $entry         = $self->entry;
+    my @orderedFields = map { $self->getFieldConfig($_) } @{ $self->getFieldOrder };
+    my $func       = $session->form->process('func');
+    my $ignoreForm = $func eq 'editSave' || $func eq 'editFieldSave';
+    my @forms      = ();
+    for my $field (@orderedFields) {
+        my $value;
+        if ($entry) {
+            $value = $entry->field( $field->{name} );
+        }
+        elsif (!$ignoreForm && defined (my $formValue = $self->session->form->process($field->{name}))) {
+            $value = $formValue;
+        }
+        my $hidden
+            = ($field->{status} eq 'hidden' && !$session->var->isAdminOn)
+            || ($field->{isMailField} && !$self->get('mailData'));
+	
+        # populate Rich Editor field if the field is an HTMLArea
+        if ($field->{type} eq "HTMLArea") { 
+            $field->{htmlAreaRichEditor} = $self->get("htmlAreaRichEditor") ;
+        }
+        my $form = $self->_createForm($field, $value);
+        $form->headTags();
+        push @forms, [$field, $form];
+    }
+    return @forms;
+}
+
+#-------------------------------------------------------------------
 sub _fieldAdminIcons {
     my $self = shift;
     my $fieldName = shift;
@@ -231,6 +270,31 @@ sub getContentLastModified {
         return time;
     }
     return $self->SUPER::getContentLastModified;
+}
+
+#-------------------------------------------------------------------
+
+=head2 entry ( [ $entry ] )
+
+Returns a DataForm Entry object.  If one is cached in the object, it will return it.
+If the current request object has an entryId, then it will fetch the Entry from the database.
+Otherwise, it will return an empty DataForm Entry object.
+
+=head3 $entry
+
+A DataForm Entry object.  If passed, it will set the cache in this object.  This takes precedence
+over any other option.
+
+=cut
+
+sub entry {
+    my $self = shift;
+    my $entry = shift;
+    $self->{_entry} = $entry if defined $entry;
+    return $self->{_entry} if $self->{_entry};
+    my $entryId = $self->session->form->process("entryId");
+    $self->{_entry} = $self->entryClass->new($self, ($entryId && $self->canEdit) ? $entryId : ());
+    return $self->{_entry};
 }
 
 #-------------------------------------------------------------------
@@ -865,8 +929,6 @@ sub getRecordTemplateVars {
         $var->{'delete.label'   } = $i18n->get(90);
         $var->{'entryId'        } = $entryId;
     }
-    my $func = $session->form->process('func');
-    my $ignoreForm = $func eq 'editSave' || $func eq 'editFieldSave';
 
     my %tabById;
     my @tabLoop;
@@ -889,26 +951,21 @@ sub getRecordTemplateVars {
     }
 
     my @fieldLoop;
-    my @fields = map { $self->getFieldConfig($_) } @{ $self->getFieldOrder };
-    for my $field (@fields) {
+    if (!$self->{_cached_forms}) {
+        $self->{_cached_forms} = [ $self->_getFormFields($entry) ];
+    }
+    my @fields = @{ $self->{_cached_forms} };
+    for my $field_form (@fields) {
+        my ($field, $form) = @{ $field_form };
         # need a copy
-        my $value;
-        if ($entry) {
-            $value = $entry->field( $field->{name} );
-        }
-        elsif (!$ignoreForm && defined (my $formValue = $self->session->form->process($field->{name}))) {
-            $value = $formValue;
-        }
-        my $hidden
-            = ($field->{status} eq 'hidden' && !$session->var->isAdminOn)
-            || ($field->{isMailField} && !$self->get('mailData'));
+        my $hidden =  ($field->{status} eq 'hidden' && !$session->var->isAdminOn)
+                   || ($field->{isMailField} && !$self->get('mailData'));
 	
-	# populate Rich Editor field if the field is an HTMLArea
-	if ($field->{type} eq "HTMLArea") { 
-		$field->{htmlAreaRichEditor} = $self->get("htmlAreaRichEditor") ;
-	}
-        my $form = $self->_createForm($field, $value);
-        $value = $form->getValueAsHtml;
+        # populate Rich Editor field if the field is an HTMLArea
+        if ($field->{type} eq "HTMLArea") { 
+            $field->{htmlAreaRichEditor} = $self->get("htmlAreaRichEditor") ;
+        }
+        my $value = $form->getValueAsHtml;
         my %fieldProperties = (
             "form"          => $form->toHtml,
             "name"          => $field->{name},
@@ -1246,6 +1303,12 @@ sub prepareViewForm {
             assetId    => $self->getId,
         );
     }
+    ##Check to see if this already exists, since in www_process, getRecordTemplateVars is
+    ##called before prepareViewForm.  Normally, however, this prepareViewForm will be called
+    ##first.
+    if (!$self->{_cached_forms}) {
+        $self->{_cached_forms} = [ $self->_getFormFields() ];
+    }
     $template->prepare($self->getMetaDataAsTemplateVariables);
     $self->{_viewFormTemplate} = $template;
 }
@@ -1275,8 +1338,7 @@ sub viewForm {
     my $entry       = shift;
     my $var         = $self->getTemplateVars;
     if (!$entry) {
-        my $entryId = $self->session->form->process("entryId");
-        $entry = $self->entryClass->new($self, ($entryId && $self->canEdit) ? $entryId : ());
+        $entry = $self->entry;
     }
     $var = $passedVars || $self->getRecordTemplateVars($var, $entry);
     if ($self->hasCaptcha) {
@@ -2093,8 +2155,7 @@ sub www_process {
         unless $self->canView;
     my $session = $self->session;
     my $i18n    = WebGUI::International->new($session,"Asset_DataForm");
-    my $entryId = $session->form->process('entryId');
-    my $entry   = $self->entryClass->new($self, ( $entryId ? $entryId : () ) );
+    my $entry   = $self->entry;
 
     my $var = $self->getTemplateVars;
 
@@ -2152,7 +2213,7 @@ sub www_process {
     }
 
     # Send email
-    if ($self->get("mailData") && !$entryId) {
+    if ($self->get("mailData") && !$entry->entryId) {
         $self->sendEmail($var, $entry);
     }
 
